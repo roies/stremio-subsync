@@ -1,62 +1,70 @@
 # stremio-subsync
 
-Stremio addon that auto-syncs subtitles using [ffsubsync](https://github.com/smacke/ffsubsync).
+Stremio addon that fetches English subtitles and **automatically translates them to Hebrew** in real time, with optional subtitle timing sync via [ffsubsync](https://github.com/smacke/ffsubsync).
 
-## Install dependencies
+---
 
-```bash
-pip install ffsubsync
-npm install
-```
+## Install (Windows)
 
-Optional — free OpenSubtitles API key for subtitle search (register at [opensubtitles.com](https://www.opensubtitles.com)):
+**Prerequisites — install these first if you don't have them:**
+- [Node.js](https://nodejs.org) (LTS version)
+- [Python](https://python.org/downloads) ✔ check "Add to PATH" during install
 
-```bash
-export OPENSUBS_API_KEY=your_key_here
-```
+**Steps:**
 
-## Run
+1. [Download this repo as ZIP](https://github.com/roies/stremio-subsync/archive/refs/heads/master.zip) and extract it
+2. Double-click **`install.bat`** — installs all dependencies
+3. Double-click **`start.bat`** — starts the server and shows your URL
+4. Copy the URL (looks like `http://192.168.1.X:7000/manifest.json`)
+5. Open Stremio on any device → **Settings → Add-ons** → paste the URL → **Install**
 
-```bash
-npm start
-# → SubSync addon running — install in Stremio: http://localhost:7000/manifest.json
-```
+> The PC running `start.bat` must be on and connected to the same Wi-Fi as your TV.
 
-Open Stremio → Settings → Add-ons → paste `http://localhost:7000/manifest.json`.
+---
 
 ## How it works
 
-1. Stremio requests subtitles for a movie/series (by IMDB ID)
-2. SubSync fetches subtitle options from OpenSubtitles (requires `OPENSUBS_API_KEY`)
-3. Returns subtitle URLs pointing to the local `/sync.srt` endpoint
-4. When Stremio fetches that URL, SubSync:
-   - Downloads the original subtitle to a temp file
-   - If a video URL is registered (see below), downloads the video and runs `ffsubsync`
-   - Serves the synced `.srt`, cached by content hash for future requests
-   - Cleans up temp files
+1. Stremio requests subtitles for what you're watching (by IMDB ID)
+2. SubSync fetches English subtitles from OpenSubtitles (set `OPENSUBS_API_KEY` env var)
+3. Translates them to Hebrew automatically using Google Translate
+4. Serves the translated `.srt` file back to Stremio (cached — each subtitle translated only once)
 
-## Register a video URL for syncing
+Optionally, if you register the video stream URL (see below), it also runs `ffsubsync` to fix timing offset before translating.
 
-Stremio doesn't pass the video stream URL to subtitle requests, so you need to
-register it before pressing play:
+---
+
+## Register a video URL for timing sync (optional)
+
+Stremio doesn't share the video URL with addons, so you need to register it manually:
 
 ```bash
-curl -X POST \
-  "http://localhost:7000/register?imdbId=tt1234567&videoUrl=http%3A%2F%2Fstream.example.com%2Fvideo.mkv"
+curl -X POST "http://localhost:7000/register?imdbId=tt1234567&videoUrl=http%3A%2F%2Fstream.example.com%2Fvideo.mkv"
 ```
 
-SubSync will embed the video URL in the subtitle links it returns for that content,
-so ffsubsync can align the timing.
+Without this, subtitles are translated but not timing-corrected.
 
-Without a registered video URL, subtitles are returned as-is (no timing correction).
+---
 
-## Direct sync endpoint
-
-You can also call the sync endpoint directly with any subtitle and video URL:
+## Direct sync + translate endpoint
 
 ```
-GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt&videoUrl=https%3A%2F%2Fexample.com%2Fvideo.mkv
+GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt
 ```
+
+Optional params: `videoUrl`, `lang` (default: `he`).
+
+---
+
+## Environment variables
+
+| Variable           | Default | Description                              |
+|--------------------|---------|------------------------------------------|
+| `PORT`             | `7000`  | HTTP port                                |
+| `BASE_URL`         | auto    | Public URL (set if behind a proxy)       |
+| `TARGET_LANG`      | `he`    | Translation target language code         |
+| `OPENSUBS_API_KEY` | —       | Free API key from opensubtitles.com      |
+
+---
 
 ## Tests
 
@@ -64,13 +72,3 @@ GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt&vi
 npm test
 ```
 
-Tests run without a real Stremio instance, network, or video files — all external
-calls (fetch, ffsubsync) are mocked.
-
-## Environment variables
-
-| Variable           | Default                    | Description                          |
-|--------------------|----------------------------|--------------------------------------|
-| `PORT`             | `7000`                     | HTTP port to listen on               |
-| `BASE_URL`         | `http://localhost:{PORT}`  | Public URL (set if behind a proxy)   |
-| `OPENSUBS_API_KEY` | *(unset)*                  | OpenSubtitles API key (free tier ok) |
