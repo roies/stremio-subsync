@@ -412,12 +412,12 @@ async function runTests() {
     assert.strictEqual(translated.length, 2);
   });
 
-  await test('translateSrt falls back to original text on error', async () => {
+  await test('translateSrt falls back to local translation on error', async () => {
     const mockFetch = async () => ({ ok: false, status: 429, json: async () => [] });
     const result = await translateSrt(TWO_BLOCK_SRT, 'he', mockFetch);
-    // Should still be valid SRT with original text
-    assert.ok(result.includes('Hello'));
-    assert.ok(result.includes('Goodbye'));
+    // Should still be valid SRT and contain Hebrew-ish local fallback
+    assert.ok(result.includes('שלום'));
+    assert.ok(result.includes('להתראות'));
   });
 
   await test('syncSubtitle translates when targetLang provided', async () => {
