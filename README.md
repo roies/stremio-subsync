@@ -12,7 +12,7 @@ Stremio addon that **automatically fetches English subtitles and translates them
 - [Node.js](https://nodejs.org) (LTS version)
 - [Python](https://python.org/downloads) ✔ check "Add to PATH" during install
 
-**Steps:**
+### Easiest way: double-click the batch files
 
 1. [Download ZIP](https://github.com/roies/stremio-hebtitles/archive/refs/heads/master.zip) → extract it
 2. Double-click **`install.bat`** — installs all dependencies (run once)
@@ -23,6 +23,28 @@ Stremio addon that **automatically fetches English subtitles and translates them
 4. Open Stremio on any device → **Settings → Add-ons** → paste the URL → **Install**
 
 > Keep `start.bat` running while you watch. The PC must be on the same Wi-Fi as your TV.
+
+### Command Prompt / PowerShell version (copy-paste)
+
+Open Command Prompt or PowerShell in the extracted folder and run:
+
+```cmd
+pip install ffsubsync
+pip install argostranslate
+npm install
+npm start
+```
+
+If you prefer PowerShell, use the same commands:
+
+```powershell
+pip install ffsubsync
+pip install argostranslate
+npm install
+npm start
+```
+
+The addon will print the install URL when it starts. Use that URL in Stremio.
 
 ---
 
