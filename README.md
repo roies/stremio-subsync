@@ -79,6 +79,14 @@ GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt
 
 Optional params: `videoUrl` (for timing sync), `lang` (default: `he`), `sourceLang` (default: `en`).
 
+## Health check
+
+```
+GET http://localhost:7000/health
+```
+
+This returns a simple status payload so you can confirm the addon is up.
+
 ---
 
 ## Environment variables
@@ -94,6 +102,18 @@ Create a local `.env` file (or copy `.env.example` to `.env`) to persist setting
 | `ENABLE_REMOTE_TRANSLATION` | `false` | Set to `true` to allow Google Translate calls; default is off for safer, more explicit usage |
 | `REGISTER_TOKEN` | - | If set, `/register` requires `Authorization: Bearer <token>` |
 | `OPENSUBS_API_KEY` | - | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
+
+## CLI flags
+
+You can also override the same settings from the command line when starting the addon:
+
+`ash
+node addon.js --port=7001 --target-lang=he --source-lang=en
+`
+
+This is useful for one-off runs without editing .env.
+
+---
 
 ## Optional better offline translation
 
@@ -116,7 +136,7 @@ When `argos-translate` is available, SubSync uses it first for offline translati
 ## Tests
 
 ```bash
-npm test   # 32 mocked tests, no network or video files needed
+npm test   # 35 mocked tests, no network or video files needed
 ```
 
 

@@ -31,4 +31,34 @@ function loadEnvFile(filePath = path.join(__dirname, '.env'), env = process.env)
   return env;
 }
 
-module.exports = { parseEnv, loadEnvFile };
+function parseCliArgs(argv = process.argv.slice(2)) {
+  const values = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) continue;
+    const rawKey = arg.slice(2);
+    const eqIndex = rawKey.indexOf('=');
+    const key = eqIndex >= 0 ? rawKey.slice(0, eqIndex) : rawKey;
+    const normalized = key.replace(/-/g, '_').toUpperCase();
+    let value;
+    if (eqIndex >= 0) {
+      value = rawKey.slice(eqIndex + 1);
+    } else if (argv[i + 1] && !argv[i + 1].startsWith('--')) {
+      value = argv[i + 1];
+      i += 1;
+    } else {
+      value = 'true';
+    }
+    values[normalized] = value;
+  }
+  return values;
+}
+
+function applyCliOverrides(argv = process.argv.slice(2), env = process.env) {
+  Object.entries(parseCliArgs(argv)).forEach(([key, value]) => {
+    env[key] = value;
+  });
+  return env;
+}
+
+module.exports = { parseEnv, loadEnvFile, parseCliArgs, applyCliOverrides };

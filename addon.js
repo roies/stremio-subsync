@@ -7,14 +7,17 @@ const dns = require('dns').promises;
 const net = require('net');
 const { URL } = require('url');
 const { syncSubtitle } = require('./syncer');
-const { loadEnvFile } = require('./config');
+const { loadEnvFile, applyCliOverrides } = require('./config');
 
 loadEnvFile();
+applyCliOverrides(process.argv.slice(2), process.env);
 
 const PORT = parseInt(process.env.PORT || '7000', 10);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const REGISTER_TOKEN = process.env.REGISTER_TOKEN || null;
 const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
+const RATE_LIMIT_MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '60', 10);
 
 // RFC 1918, loopback, link-local, and cloud metadata ranges to block for SSRF
 const BLOCKED_HOSTNAME_RE = /^(localhost|.*\.local)$/i;
@@ -67,6 +70,38 @@ const manifest = {
 };
 
 const builder = new addonBuilder(manifest);
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function createRateLimiter({ windowMs = RATE_LIMIT_WINDOW_MS, maxRequests = RATE_LIMIT_MAX_REQUESTS } = {}) {
+  const buckets = new Map();
+  return function rateLimit(req, res, next) {
+    const ip = getClientIp(req);
+    const now = Date.now();
+    const recent = (buckets.get(ip) || []).filter(timestamp => now - timestamp < windowMs);
+    if (recent.length >= maxRequests) {
+      res.status(429).json({ error: 'Too many requests, please slow down' });
+      return;
+    }
+    recent.push(now);
+    buckets.set(ip, recent);
+    next();
+  };
+}
+
+function logRequests(req, res, next) {
+  const startedAt = Date.now();
+  const { method, originalUrl } = req;
+  console.log(`[${new Date().toISOString()}] ${method} ${originalUrl} from ${getClientIp(req)}`);
+  res.on('finish', () => {
+    console.log(`[${new Date().toISOString()}] ${res.statusCode} ${method} ${originalUrl} (${Date.now() - startedAt}ms)`);
+  });
+  next();
+}
 
 async function fetchOpenSubsList(imdbId, type, season, episode) {
   const key = process.env.OPENSUBS_API_KEY;
@@ -130,7 +165,10 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
 });
 
 const app = express();
+const rateLimitMiddleware = createRateLimiter();
 app.use(express.json());
+app.use(logRequests);
+app.use(rateLimitMiddleware);
 
 /**
  * Register a video URL for a content ID.
@@ -231,4 +269,13 @@ function start(port = PORT) {
 
 if (require.main === module) start();
 
-module.exports = { app, videoUrlStore, resolveOpenSubsDownloadUrl, fetchOpenSubsList, validateUrl, manifest };
+module.exports = {
+  app,
+  videoUrlStore,
+  resolveOpenSubsDownloadUrl,
+  fetchOpenSubsList,
+  validateUrl,
+  manifest,
+  createRateLimiter,
+  getClientIp,
+};

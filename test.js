@@ -13,7 +13,8 @@ const http = require('http');
 
 const { syncSubtitle, cacheKey, CACHE_DIR } = require('./syncer');
 const { parseSrt, buildSrt, translateSrt } = require('./translator');
-const { loadEnvFile } = require('./config');
+const { loadEnvFile, applyCliOverrides } = require('./config');
+const { createRateLimiter } = require('./addon');
 
 let passed = 0;
 let failed = 0;
@@ -297,6 +298,28 @@ async function runTests() {
     } finally {
       await fs.unlink(envFile).catch(() => {});
     }
+  });
+
+  await test('applyCliOverrides lets CLI flags override config values', async () => {
+    const env = { PORT: '5000', TARGET_LANG: 'fr' };
+    applyCliOverrides(['--port=7001', '--target-lang=he'], env);
+    assert.strictEqual(env.PORT, '7001');
+    assert.strictEqual(env.TARGET_LANG, 'he');
+  });
+
+  await test('createRateLimiter blocks bursts after the configured threshold', async () => {
+    const limiter = createRateLimiter({ windowMs: 1000, maxRequests: 2 });
+    let nextCalls = 0;
+    const req = { headers: {}, ip: '10.0.0.1' };
+    const res = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json() {} };
+    const next = () => { nextCalls += 1; };
+
+    limiter(req, res, next);
+    limiter(req, res, next);
+    limiter(req, res, next);
+
+    assert.strictEqual(nextCalls, 2);
+    assert.strictEqual(res.statusCode, 429);
   });
 
   console.log('\nsecurity');
