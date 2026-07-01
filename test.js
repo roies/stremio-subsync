@@ -401,6 +401,7 @@ async function runTests() {
   });
 
   await test('translateSrt calls translate fn for each block', async () => {
+    process.env.ENABLE_REMOTE_TRANSLATION = 'true';
     const translated = [];
     const mockTranslateFetch = async url => {
       const text = decodeURIComponent(url.match(/&q=(.+)$/)[1]);
@@ -415,9 +416,11 @@ async function runTests() {
     assert.ok(result.includes('[Hello]'), 'first block translated');
     assert.ok(result.includes('[Goodbye]'), 'second block translated');
     assert.strictEqual(translated.length, 2);
+    delete process.env.ENABLE_REMOTE_TRANSLATION;
   });
 
   await test('translateSrt uses configured source language', async () => {
+    process.env.ENABLE_REMOTE_TRANSLATION = 'true';
     const seen = [];
     const mockFetch = async url => {
       seen.push(url);
@@ -425,6 +428,7 @@ async function runTests() {
     };
     await translateSrt('1\n00:00:01,000 --> 00:00:03,000\nHello\n\n', 'he', mockFetch, 'fr');
     assert.ok(seen[0].includes('sl=fr'));
+    delete process.env.ENABLE_REMOTE_TRANSLATION;
   });
 
   await test('translateSrt falls back to local translation on error', async () => {
@@ -455,6 +459,7 @@ async function runTests() {
   });
 
   await test('syncSubtitle translates when targetLang provided', async () => {
+    process.env.ENABLE_REMOTE_TRANSLATION = 'true';
     const subUrl = 'http://test.invalid/translate-sub.srt';
     await fs.unlink(path.join(CACHE_DIR, `${cacheKey(subUrl, null, 'he')}.srt`)).catch(() => {});
 
@@ -472,6 +477,7 @@ async function runTests() {
 
     const result = await syncSubtitle({ subUrl, targetLang: 'he', fetch: mockFetch });
     assert.ok(result.includes('TRANSLATED:'), 'translation was applied');
+    delete process.env.ENABLE_REMOTE_TRANSLATION;
   });
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

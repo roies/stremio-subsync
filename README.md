@@ -6,6 +6,8 @@ SubSync is a Stremio addon that automatically handles subtitle streams: it can t
 
 License: MIT. The project code is licensed under MIT; third-party dependencies and external services (such as ffsubsync, Argos Translate, Google Translate, and OpenSubtitles) remain subject to their own licenses and terms.
 
+Compliance note: this project is a local automation tool. You are responsible for using it only with content you are authorized to access, and for complying with the terms of Stremio, any subtitle providers, and any translation services you enable. By default, the addon uses local/offline translation behavior and does not call remote translation services unless you explicitly enable `ENABLE_REMOTE_TRANSLATION=true`.
+
 ---
 
 ## Install (Windows)
@@ -86,6 +88,7 @@ Optional params: `videoUrl` (for timing sync), `lang` (default: `he`), `sourceLa
 | `BASE_URL`         | auto    | Public URL if running behind a proxy |
 | `SOURCE_LANG`      | `en`    | Source language for translation (default: English) |
 | `TARGET_LANG`      | `he`    | Translation target (default: Hebrew) |
+| `ENABLE_REMOTE_TRANSLATION` | `false` | Set to `true` to allow Google Translate calls; default is off for safer, more explicit usage |
 | `REGISTER_TOKEN`   | -       | If set, `/register` requires `Authorization: example-token` |
 | `OPENSUBS_API_KEY` | -       | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
 

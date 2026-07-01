@@ -145,6 +145,11 @@ function normalizeLangCode(lang) {
   return (lang || '').toLowerCase().trim();
 }
 
+function remoteTranslationEnabled() {
+  const value = normalizeLangCode(process.env.ENABLE_REMOTE_TRANSLATION);
+  return ['1', 'true', 'yes', 'on'].includes(value);
+}
+
 function isEnglishLike(lang) {
   const normalized = normalizeLangCode(lang);
   return ['en', 'eng', 'english', 'auto', ''].includes(normalized);
@@ -230,6 +235,11 @@ async function translateText(text, targetLang, fetchFn, sourceLang = 'en') {
 
   const argosResult = await argosTranslate(text, targetLang, sourceLang);
   if (argosResult) return argosResult;
+
+  if (!remoteTranslationEnabled()) {
+    const local = localTranslateText(text, targetLang, sourceLang);
+    return local || text;
+  }
 
   try {
     return await googleTranslate(text, targetLang, fetchFn, sourceLang);
