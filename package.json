@@ -1,7 +1,7 @@
 {
-  "name": "stremio-hebtitles",
+  "name": "stremio-subsync",
   "version": "1.0.0",
-  "description": "Stremio addon — automatic English→Hebrew subtitle translation with optional timing sync via ffsubsync",
+  "description": "Stremio subtitle sync and translation addon with optional ffsubsync timing repair",
   "main": "addon.js",
   "scripts": {
     "start": "node addon.js",
@@ -14,6 +14,10 @@
   },
   "engines": {
     "node": ">=14"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roies/stremio-subsync.git"
   },
   "license": "MIT"
 }

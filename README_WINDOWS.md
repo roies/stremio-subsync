@@ -1,4 +1,4 @@
-# Windows Install Guide for HebTitles
+# Windows Install Guide for SubSync
 
 ## Option 1: Double-click the batch files
 

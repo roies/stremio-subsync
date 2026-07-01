@@ -273,7 +273,7 @@ async function runTests() {
       const { status, body } = await httpRequest({ hostname: 'localhost', port, path: '/manifest.json' });
       assert.strictEqual(status, 200);
       const manifest = JSON.parse(body);
-      assert.strictEqual(manifest.id, 'community.hebtitles');
+      assert.strictEqual(manifest.id, 'community.subsync');
       assert.ok(manifest.resources.includes('subtitles'));
     } finally {
       await new Promise(r => server.close(r));

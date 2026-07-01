@@ -50,13 +50,13 @@ async function validateUrl(raw) {
 const videoUrlStore = new Map();
 
 const manifest = {
-  id: 'community.hebtitles',
+  id: 'community.subsync',
   version: '1.0.0',
-  name: 'HebTitles',
+  name: 'SubSync',
   description:
-    'Automatic English→Hebrew subtitle translation for any movie or series. ' +
-    'Fetches English subtitles, translates to Hebrew in real time, and optionally ' +
-    'fixes subtitle timing using ffsubsync.',
+    'Subtitle sync and translation for Stremio. ' +
+    'Fetches subtitle streams, translates them to your target language (Hebrew by default), ' +
+    'and optionally repairs subtitle timing with ffsubsync.',
   resources: ['subtitles'],
   types: ['movie', 'series'],
   idPrefixes: ['tt'],

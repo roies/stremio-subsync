@@ -118,6 +118,10 @@ const PHRASE_MAP = {
   'see you soon': 'נתראה בקרוב',
 };
 
+const DEFAULT_OFFLINE_TRANSLATIONS = {
+  he: { map: SMALL_HEB_MAP, phrases: PHRASE_MAP },
+};
+
 function parseSrt(content) {
   return content
     .trim()
@@ -137,12 +141,22 @@ function normalizePhrase(text) {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function getOfflineTranslator(targetLang) {
+  const lang = (targetLang || 'he').toLowerCase();
+  if (lang === 'he' || lang === 'heb' || lang === 'hebrew') {
+    return { map: SMALL_HEB_MAP, phrases: PHRASE_MAP };
+  }
+  return null;
+}
+
 function localTranslateText(text, targetLang) {
-  if (targetLang && !/^he|hebrew$/i.test(targetLang)) return null;
+  const translator = getOfflineTranslator(targetLang);
+  if (!translator) return null;
+
   const normalized = normalizePhrase(text);
   if (!normalized) return '';
 
-  if (PHRASE_MAP[normalized]) return PHRASE_MAP[normalized];
+  if (translator.phrases[normalized]) return translator.phrases[normalized];
 
   const tokens = text.split(/(\s+|[.,!?;:'"()\-]+)/);
   return tokens.map(token => {
@@ -152,7 +166,7 @@ function localTranslateText(text, targetLang) {
 
     const word = match[0];
     const lower = word.toLowerCase();
-    const translated = SMALL_HEB_MAP[lower] || word;
+    const translated = translator.map[lower] || word;
     if (word === word.toUpperCase()) return translated.toUpperCase();
     if (/[A-Z]/.test(word[0])) return translated.charAt(0).toUpperCase() + translated.slice(1);
     return translated;
@@ -188,7 +202,8 @@ function argosTranslate(text, targetLang) {
 }
 
 async function translateText(text, targetLang, fetchFn) {
-  if (targetLang && !/^he|hebrew$/i.test(targetLang)) {
+  const lang = (targetLang || 'he').toLowerCase();
+  if (lang !== 'he' && lang !== 'heb' && lang !== 'hebrew') {
     return localTranslateText(text, targetLang) || text;
   }
 
