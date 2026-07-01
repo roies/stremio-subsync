@@ -1,5 +1,7 @@
 'use strict';
 
+const { spawn } = require('child_process');
+
 const SMALL_HEB_MAP = {
   hello: 'שלום',
   hi: 'היי',
@@ -58,13 +60,9 @@ const SMALL_HEB_MAP = {
   morning: 'בוקר',
   evening: 'ערב',
   good: 'טוב',
-  morning: 'בוקר',
-  evening: 'ערב',
-  night: 'לילה',
   sorry: 'סליחה',
   thank: 'תודה',
   thanks: 'תודה',
-  you: 'אתה',
   me: 'אותי',
   us: 'אותנו',
   them: 'אותם',
@@ -79,7 +77,6 @@ const SMALL_HEB_MAP = {
   danger: 'סכנה',
   stay: 'להישאר',
   leave: 'לעזוב',
-  come: 'בוא',
   back: 'בחזרה',
   now: 'עכשיו',
   later: 'מאוחר יותר',
@@ -117,12 +114,10 @@ const PHRASE_MAP = {
   'go away': 'לך מכאן',
   'wait here': 'תחכה כאן',
   'take care': 'תשמור על עצמך',
-  'see you later': 'נתראה later',
+  'see you later': 'נתראה מאוחר יותר',
   'see you soon': 'נתראה בקרוב',
 };
 
-
-// Parse SRT into blocks: [{ index, timing, text }]
 function parseSrt(content) {
   return content
     .trim()
@@ -164,7 +159,6 @@ function localTranslateText(text, targetLang) {
   }).join('');
 }
 
-// Unofficial Google Translate endpoint — no API key, uses existing node-fetch
 async function googleTranslate(text, targetLang, fetchFn = require('node-fetch')) {
   const url =
     'https://translate.googleapis.com/translate_a/single?' +
@@ -172,10 +166,35 @@ async function googleTranslate(text, targetLang, fetchFn = require('node-fetch')
   const res = await fetchFn(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!res.ok) throw new Error(`Google Translate returned ${res.status}`);
   const data = await res.json();
-  return data[0].map(item => item[0]).join(''); // data[0] = [[chunk, original], ...]
+  return data[0].map(item => item[0]).join('');
+}
+
+function argosTranslate(text, targetLang) {
+  return new Promise((resolve) => {
+    const proc = spawn('argos-translate', ['-t', targetLang, '-s', 'en'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', chunk => { stdout += chunk.toString(); });
+    proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    proc.on('close', code => {
+      if (code === 0) resolve(stdout.trim());
+      else resolve(null);
+    });
+    proc.on('error', () => resolve(null));
+    proc.stdin.end(text);
+  });
 }
 
 async function translateText(text, targetLang, fetchFn) {
+  if (targetLang && !/^he|hebrew$/i.test(targetLang)) {
+    return localTranslateText(text, targetLang) || text;
+  }
+
+  const argosResult = await argosTranslate(text, targetLang);
+  if (argosResult) return argosResult;
+
   try {
     return await googleTranslate(text, targetLang, fetchFn);
   } catch {
@@ -184,8 +203,6 @@ async function translateText(text, targetLang, fetchFn) {
   }
 }
 
-// Translate all subtitle text blocks, CONCURRENCY at a time.
-// Falls back to the original text on any per-block error.
 async function translateSrt(content, targetLang, fetchFn = require('node-fetch')) {
   const blocks = parseSrt(content);
   if (!blocks.length) return content;
@@ -195,13 +212,12 @@ async function translateSrt(content, targetLang, fetchFn = require('node-fetch')
 
   for (let i = 0; i < blocks.length; i += CONCURRENCY) {
     const slice = blocks.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(
-      slice.map(b => translateText(b.text, targetLang, fetchFn))
-    );
+    const results = await Promise.all(slice.map(b => translateText(b.text, targetLang, fetchFn)));
     results.forEach((t, j) => { translated[i + j] = t; });
   }
 
   return buildSrt(blocks.map((b, i) => ({ ...b, text: translated[i] })));
 }
 
-module.exports = { parseSrt, buildSrt, googleTranslate, translateSrt, localTranslateText };
+module.exports = { parseSrt, buildSrt, googleTranslate, translateSrt, localTranslateText, argosTranslate };
+

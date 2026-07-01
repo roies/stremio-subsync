@@ -21,9 +21,15 @@ if %errorlevel% neq 0 (
 echo Installing Python dependency ^(ffsubsync^)...
 pip install ffsubsync
 if %errorlevel% neq 0 (
-    echo ERROR: pip install failed.
+    echo ERROR: pip install ffsubsync failed.
     pause
     exit /b 1
+)
+
+echo Installing optional offline translator ^(Argos Translate^)...
+pip install argostranslate
+if %errorlevel% neq 0 (
+    echo Optional Argos Translate install failed; built-in fallback will still work.
 )
 
 echo Installing Node.js dependencies...

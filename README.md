@@ -64,6 +64,16 @@ Optional params: `videoUrl` (for timing sync), `lang` (default: `he`).
 | `REGISTER_TOKEN`   | —       | If set, `/register` requires `Authorization: Bearer <token>` |
 | `OPENSUBS_API_KEY` | —       | Free API key from [opensubtitles.com](https://www.opensubtitles.com) |
 
+## Optional better offline translation
+
+If you want higher-quality offline translation, install Argos Translate on the same machine running the addon:
+
+```bash
+pip install argostranslate
+```
+
+When `argos-translate` is available, HebTitles uses it first for offline translation. If it is not installed or fails, it falls back to the built-in local translator.
+
 ## Security notes
 
 - The addon blocks private/loopback/localhost URLs (`127.0.0.0/8`, `10/8`, `192.168/16`, `169.254/16`, `.local`, etc.) for outbound subtitle/video downloads.
