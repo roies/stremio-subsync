@@ -141,16 +141,33 @@ function normalizePhrase(text) {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function getOfflineTranslator(targetLang) {
-  const lang = (targetLang || 'he').toLowerCase();
+function normalizeLangCode(lang) {
+  return (lang || '').toLowerCase().trim();
+}
+
+function isEnglishLike(lang) {
+  const normalized = normalizeLangCode(lang);
+  return ['en', 'eng', 'english', 'auto', ''].includes(normalized);
+}
+
+function looksLikeTargetLanguage(text, targetLang) {
+  const lang = normalizeLangCode(targetLang);
   if (lang === 'he' || lang === 'heb' || lang === 'hebrew') {
+    return /[\u0590-\u05FF]/.test(text);
+  }
+  return false;
+}
+
+function getOfflineTranslator(targetLang, sourceLang = 'en') {
+  const lang = normalizeLangCode(targetLang);
+  if ((lang === 'he' || lang === 'heb' || lang === 'hebrew') && isEnglishLike(sourceLang)) {
     return { map: SMALL_HEB_MAP, phrases: PHRASE_MAP };
   }
   return null;
 }
 
-function localTranslateText(text, targetLang) {
-  const translator = getOfflineTranslator(targetLang);
+function localTranslateText(text, targetLang, sourceLang = 'en') {
+  const translator = getOfflineTranslator(targetLang, sourceLang);
   if (!translator) return null;
 
   const normalized = normalizePhrase(text);
@@ -173,19 +190,19 @@ function localTranslateText(text, targetLang) {
   }).join('');
 }
 
-async function googleTranslate(text, targetLang, fetchFn = require('node-fetch')) {
+async function googleTranslate(text, targetLang, fetchFn = require('node-fetch'), sourceLang = 'en') {
   const url =
     'https://translate.googleapis.com/translate_a/single?' +
-    `client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
+    `client=gtx&sl=${encodeURIComponent(sourceLang || 'en')}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
   const res = await fetchFn(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!res.ok) throw new Error(`Google Translate returned ${res.status}`);
   const data = await res.json();
   return data[0].map(item => item[0]).join('');
 }
 
-function argosTranslate(text, targetLang) {
+function argosTranslate(text, targetLang, sourceLang = 'en') {
   return new Promise((resolve) => {
-    const proc = spawn('argos-translate', ['-t', targetLang, '-s', 'en'], {
+    const proc = spawn('argos-translate', ['-t', targetLang, '-s', sourceLang || 'en'], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -201,24 +218,28 @@ function argosTranslate(text, targetLang) {
   });
 }
 
-async function translateText(text, targetLang, fetchFn) {
-  const lang = (targetLang || 'he').toLowerCase();
-  if (lang !== 'he' && lang !== 'heb' && lang !== 'hebrew') {
-    return localTranslateText(text, targetLang) || text;
+async function translateText(text, targetLang, fetchFn, sourceLang = 'en') {
+  if (looksLikeTargetLanguage(text, targetLang)) {
+    return text;
   }
 
-  const argosResult = await argosTranslate(text, targetLang);
+  const lang = normalizeLangCode(targetLang);
+  if (lang !== 'he' && lang !== 'heb' && lang !== 'hebrew') {
+    return localTranslateText(text, targetLang, sourceLang) || text;
+  }
+
+  const argosResult = await argosTranslate(text, targetLang, sourceLang);
   if (argosResult) return argosResult;
 
   try {
-    return await googleTranslate(text, targetLang, fetchFn);
+    return await googleTranslate(text, targetLang, fetchFn, sourceLang);
   } catch {
-    const local = localTranslateText(text, targetLang);
+    const local = localTranslateText(text, targetLang, sourceLang);
     return local || text;
   }
 }
 
-async function translateSrt(content, targetLang, fetchFn = require('node-fetch')) {
+async function translateSrt(content, targetLang, fetchFn = require('node-fetch'), sourceLang = 'en') {
   const blocks = parseSrt(content);
   if (!blocks.length) return content;
 
@@ -227,7 +248,7 @@ async function translateSrt(content, targetLang, fetchFn = require('node-fetch')
 
   for (let i = 0; i < blocks.length; i += CONCURRENCY) {
     const slice = blocks.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(slice.map(b => translateText(b.text, targetLang, fetchFn)));
+    const results = await Promise.all(slice.map(b => translateText(b.text, targetLang, fetchFn, sourceLang)));
     results.forEach((t, j) => { translated[i + j] = t; });
   }
 

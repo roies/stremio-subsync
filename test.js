@@ -77,6 +77,11 @@ async function runTests() {
                           cacheKey('http://a.example/sub.srt', null));
   });
 
+  await test('different sourceLang → different hash', () => {
+    assert.notStrictEqual(cacheKey('http://a.example/sub.srt', null, 'he', 'en'),
+                          cacheKey('http://a.example/sub.srt', null, 'he', 'fr'));
+  });
+
   await test('returns 40-char hex (SHA-1)', () => {
     assert.match(cacheKey('http://example.com/sub.srt', null), /^[0-9a-f]{40}$/);
   });
@@ -412,12 +417,30 @@ async function runTests() {
     assert.strictEqual(translated.length, 2);
   });
 
+  await test('translateSrt uses configured source language', async () => {
+    const seen = [];
+    const mockFetch = async url => {
+      seen.push(url);
+      return { ok: true, status: 200, json: async () => [[["[Hello]", "Hello"]]] };
+    };
+    await translateSrt('1\n00:00:01,000 --> 00:00:03,000\nHello\n\n', 'he', mockFetch, 'fr');
+    assert.ok(seen[0].includes('sl=fr'));
+  });
+
   await test('translateSrt falls back to local translation on error', async () => {
     const mockFetch = async () => ({ ok: false, status: 429, json: async () => [] });
     const result = await translateSrt(TWO_BLOCK_SRT, 'he', mockFetch);
     // Should still be valid SRT and contain Hebrew-ish local fallback
     assert.ok(result.includes('שלום'));
     assert.ok(result.includes('להתראות'));
+  });
+
+  await test('translateSrt skips translation when text already looks like target language', async () => {
+    const alreadyHebrew = '1\n00:00:01,000 --> 00:00:03,000\nשלום\n\n';
+    const result = await translateSrt(alreadyHebrew, 'he', async () => {
+      throw new Error('should not translate');
+    });
+    assert.strictEqual(result, '1\n00:00:01,000 --> 00:00:03,000\nשלום\n');
   });
 
   await test('translateSrt handles common phrases offline', async () => {

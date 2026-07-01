@@ -57,8 +57,8 @@ function runFfsubsync(videoPath, subPath, outPath) {
   });
 }
 
-function cacheKey(subUrl, videoUrl, targetLang) {
-  return crypto.createHash('sha1').update(`${subUrl}|${videoUrl || ''}|${targetLang || ''}`).digest('hex');
+function cacheKey(subUrl, videoUrl, targetLang = null, sourceLang = 'en') {
+  return crypto.createHash('sha1').update(`${subUrl}|${videoUrl || ''}|${targetLang || ''}|${sourceLang || ''}`).digest('hex');
 }
 
 /**
@@ -73,12 +73,13 @@ async function syncSubtitle({
   subUrl,
   videoUrl = null,
   targetLang = null,
+  sourceLang = 'en',
   fetch: fetchFn = require('node-fetch'),
   runSync = runFfsubsync,
 }) {
   await fs.mkdir(CACHE_DIR, { recursive: true });
 
-  const key = cacheKey(subUrl, videoUrl, targetLang);
+  const key = cacheKey(subUrl, videoUrl, targetLang, sourceLang);
   const cachedPath = path.join(CACHE_DIR, `${key}.srt`);
 
   // Cache hit — skip download and sync
@@ -107,7 +108,7 @@ async function syncSubtitle({
     }
 
     if (targetLang) {
-      result = await translateSrt(result, targetLang, fetchFn);
+      result = await translateSrt(result, targetLang, fetchFn, sourceLang);
     }
 
     await fs.writeFile(cachedPath, result, 'utf8');
